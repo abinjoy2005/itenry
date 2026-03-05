@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WanderSync | Intelligent Itinerary</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <!-- Load Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Inter:wght@400;500;600&display=swap"
+        rel="stylesheet">
+</head>
+
+<body class="landing-body">
+    <nav class="navbar">
+        <div class="logo">WanderSync.</div>
+        <div class="nav-links">
+            <a href="/login" class="btn btn-secondary">Log In</a>
+            <a href="/login" class="btn btn-primary">Start Planning</a>
+        </div>
+    </nav>
+
+    <header class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Experience the World.<br>Optimized for <span class="gradient-text">You.</span></h1>
+            <p class="hero-subtitle">Community-driven travel experiences powered by advanced AI and spatial
+                optimization.</p>
+            <div style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
+                <a href="/login" class="btn btn-primary btn-large">Plan a New Trip</a>
+                <a href="/login?route=experience" class="btn btn-secondary btn-large">Register a Past Trip</a>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="glass-card mockup-card">
+                <div class="mockup-header">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                </div>
+                <div class="mockup-body">
+                    <h3>Optimal Route Found</h3>
+                    <div class="route-timeline">
+                        <div class="route-item">
+                            <div class="node"></div>
+                            <div class="details">
+                                <span class="time">09:00 AM</span>
+                                <span class="place">Tea Museum</span>
+                                <span class="rating">⭐ 4.8 (Community Pick)</span>
+                            </div>
+                        </div>
+                        <div class="route-line"></div>
+                        <div class="route-item">
+                            <div class="node"></div>
+                            <div class="details">
+                                <span class="time">11:30 AM</span>
+                                <span class="place">Mattupetty Dam</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <script src="{{ url_for('static', filename='main.js') }}"></script>
+</body>
+
+</html>
