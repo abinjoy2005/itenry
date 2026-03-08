@@ -1,13 +1,12 @@
-import sqlite3
 import os
+import sys
 
-# Assuming database.py is in the parent directory
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'travel.db')
+# Add parent directory to path to import database
+sys.path.append(os.path.dirname(os.path.dirname(__file__)))
+import database
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    return database.get_db_connection()
 
 def get_top_attractions(destination, limit=20):
     """
@@ -15,7 +14,7 @@ def get_top_attractions(destination, limit=20):
     Returns a list of dicts with name, avg_rating, avg_fee, and popularity count.
     """
     conn = get_db_connection()
-    c = conn.cursor()
+    c = conn.cursor(cursor_factory=database.RealDictCursor)
     
     query = '''
         SELECT 
@@ -25,21 +24,23 @@ def get_top_attractions(destination, limit=20):
             COUNT(p.place_id) as visitation_count
         FROM places_visited p
         JOIN trip_experiences t ON p.trip_id = t.trip_id
-        WHERE LOWER(t.destination) = LOWER(?)
+        WHERE LOWER(t.destination) = LOWER(%s)
         GROUP BY p.place_name
         ORDER BY avg_rating DESC, visitation_count DESC
-        LIMIT ?
+        LIMIT %s
     '''
     
-    rows = c.execute(query, (destination, limit)).fetchall()
+    c.execute(query, (destination, limit))
+    rows = c.fetchall()
     
     results = []
     for row in rows:
         d = dict(row)
         # Fetch up to 3 recent reviews for this place
-        reviews_query = "SELECT experience_review FROM places_visited WHERE place_name = ? AND experience_review IS NOT NULL AND experience_review != '' ORDER BY place_id DESC LIMIT 3"
-        reviews = c.execute(reviews_query, (d['place_name'],)).fetchall()
-        d['reviews'] = [r[0] for r in reviews]
+        reviews_query = "SELECT experience_review FROM places_visited WHERE place_name = %s AND experience_review IS NOT NULL AND experience_review != '' ORDER BY place_id DESC LIMIT 3"
+        c.execute(reviews_query, (d['place_name'],))
+        reviews = c.fetchall()
+        d['reviews'] = [r['experience_review'] for r in reviews]
         results.append(d)
         
     conn.close()
@@ -50,7 +51,7 @@ def get_travel_stats(destination):
     Calculates average travel costs and ratings between places for a destination.
     """
     conn = get_db_connection()
-    c = conn.cursor()
+    c = conn.cursor(cursor_factory=database.RealDictCursor)
     
     query = '''
         SELECT 
@@ -61,11 +62,12 @@ def get_travel_stats(destination):
             COUNT(*) as frequency
         FROM places_visited p
         JOIN trip_experiences t ON p.trip_id = t.trip_id
-        WHERE LOWER(t.destination) = LOWER(?) AND travel_method IS NOT NULL
+        WHERE LOWER(t.destination) = LOWER(%s) AND travel_method IS NOT NULL
         GROUP BY travel_method
     '''
     
-    rows = c.execute(query, (destination,)).fetchall()
+    c.execute(query, (destination,))
+    rows = c.fetchall()
     conn.close()
     
     return [dict(row) for row in rows]

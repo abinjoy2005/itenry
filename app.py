@@ -4,18 +4,17 @@ import bcrypt
 import jwt
 import os
 import datetime
-import sqlite3
 from functools import wraps
 from engine import recommendation, mcts_selector, optimizer, planner
+import psycopg2.errors
 
 app = Flask(__name__)
 # In production, set the SECRET_KEY environment variable. 
 # You can generate one with: python -c 'import os; print(os.urandom(24).hex())'
 app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_temporary_key')
 
-# Initialize DB on startup
-if not os.path.exists(database.DB_PATH):
-    database.init_db()
+# Initialize DB on startup (ensure tables exist)
+database.init_db()
 
 def token_required(f):
     @wraps(f)
@@ -47,7 +46,9 @@ def dashboard():
     try:
         data = jwt.decode(token, app.secret_key, algorithms=["HS256"])
         conn = database.get_db_connection()
-        user = conn.execute('SELECT * FROM users WHERE user_id = ?', (data['user_id'],)).fetchone()
+        c = conn.cursor(cursor_factory=database.RealDictCursor)
+        c.execute('SELECT * FROM users WHERE user_id = %s', (data['user_id'],))
+        user = c.fetchone()
         conn.close()
         if not user:
             return redirect(url_for('login_page'))
@@ -79,11 +80,14 @@ def api_register():
     conn = database.get_db_connection()
     c = conn.cursor()
     try:
-        c.execute('INSERT INTO users (full_name, email, password_hash) VALUES (?, ?, ?)', (full_name, email, hashed_pwd.decode('utf-8')))
+        c.execute('INSERT INTO users (full_name, email, password_hash) VALUES (%s, %s, %s)', (full_name, email, hashed_pwd.decode('utf-8')))
         conn.commit()
-    except sqlite3.IntegrityError:
+    except psycopg2.errors.UniqueViolation:
         conn.close()
         return jsonify({'message': 'Email already registered'}), 400
+    except Exception as e:
+        conn.close()
+        return jsonify({'message': f'Error: {str(e)}'}), 500
     conn.close()
     
     return jsonify({'message': 'Account created successfully'}), 201
@@ -95,8 +99,9 @@ def api_login():
     password = data.get('password')
     
     conn = database.get_db_connection()
-    c = conn.cursor()
-    user = c.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
+    c = conn.cursor(cursor_factory=database.RealDictCursor)
+    c.execute('SELECT * FROM users WHERE email = %s', (email,))
+    user = c.fetchone()
     conn.close()
     
     if user and bcrypt.checkpw(password.encode('utf-8'), user['password_hash'].encode('utf-8')):
@@ -163,20 +168,21 @@ def submit_experience():
         # 1. Save the main trip experience row
         c.execute('''
             INSERT INTO trip_experiences (user_id, destination, trip_date, companion_type, stay_name, stay_price, stay_rating, total_expense)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING trip_id
         ''', (
             user_id, data.get('destination'), data.get('trip_date'), data.get('companion_type'), 
             data.get('stay_name'), data.get('stay_price', 0), data.get('stay_rating'), data.get('total_expense', 0)
         ))
         
-        trip_id = c.lastrowid
+        trip_id = c.fetchone()[0]
         
         # 2. Save each place visited
         places = data.get('places', [])
         for idx, place in enumerate(places):
             c.execute('''
                 INSERT INTO places_visited (trip_id, place_order, place_name, place_rating, entry_fee, distance_from_prev, travel_method, travel_cost, travel_rating, experience_review)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ''', (
                 trip_id, idx, place.get('place_name'), place.get('place_rating'), place.get('entry_fee', 0),
                 place.get('distance_from_prev'), place.get('travel_method'), place.get('travel_cost'), place.get('travel_rating'),
@@ -200,16 +206,18 @@ def get_my_trips():
     user_id = user_data['user_id']
     
     conn = database.get_db_connection()
-    c = conn.cursor()
+    c = conn.cursor(cursor_factory=database.RealDictCursor)
     
     # Fetch all trips for the user
-    trips = c.execute('SELECT * FROM trip_experiences WHERE user_id = ? ORDER BY trip_id DESC', (user_id,)).fetchall()
+    c.execute('SELECT * FROM trip_experiences WHERE user_id = %s ORDER BY trip_id DESC', (user_id,))
+    trips = c.fetchall()
     
     results = []
     for trip in trips:
         trip_dict = dict(trip)
         # Fetch places for each trip
-        places = c.execute('SELECT * FROM places_visited WHERE trip_id = ? ORDER BY place_order ASC', (trip['trip_id'],)).fetchall()
+        c.execute('SELECT * FROM places_visited WHERE trip_id = %s ORDER BY place_order ASC', (trip['trip_id'],))
+        places = c.fetchall()
         trip_dict['places'] = [dict(p) for p in places]
         results.append(trip_dict)
         
