@@ -26,7 +26,8 @@ def build_itinerary(route: list, start_time: str = "09:00", stay_per_place: int 
             "time": current_time.strftime("%H:%M"),
             "place": place.get('place_name', 'Unknown'),
             "cost": float(place.get('avg_fee', 0.0)),
-            "rating": round(float(place.get('avg_rating', 0.0)), 1)
+            "rating": round(float(place.get('avg_rating', 0.0)), 1),
+            "reviews": place.get('reviews', [])
         }
         itinerary.append(visit_entry)
         total_cost += float(place.get('avg_fee', 0.0))

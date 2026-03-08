@@ -9,7 +9,9 @@ from functools import wraps
 from engine import recommendation, mcts_selector, optimizer, planner
 
 app = Flask(__name__)
-app.secret_key = 'super_secret_temporary_key' # In prod, use os.environ.get('SECRET_KEY')
+# In production, set the SECRET_KEY environment variable. 
+# You can generate one with: python -c 'import os; print(os.urandom(24).hex())'
+app.secret_key = os.environ.get('SECRET_KEY', 'super_secret_temporary_key')
 
 # Initialize DB on startup
 if not os.path.exists(database.DB_PATH):
@@ -173,11 +175,12 @@ def submit_experience():
         places = data.get('places', [])
         for idx, place in enumerate(places):
             c.execute('''
-                INSERT INTO places_visited (trip_id, place_order, place_name, place_rating, entry_fee, distance_from_prev, travel_method, travel_cost, travel_rating)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO places_visited (trip_id, place_order, place_name, place_rating, entry_fee, distance_from_prev, travel_method, travel_cost, travel_rating, experience_review)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 trip_id, idx, place.get('place_name'), place.get('place_rating'), place.get('entry_fee', 0),
-                place.get('distance_from_prev'), place.get('travel_method'), place.get('travel_cost'), place.get('travel_rating')
+                place.get('distance_from_prev'), place.get('travel_method'), place.get('travel_cost'), place.get('travel_rating'),
+                place.get('experience_review')
             ))
             
         conn.commit()

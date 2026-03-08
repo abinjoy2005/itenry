@@ -32,9 +32,18 @@ def get_top_attractions(destination, limit=20):
     '''
     
     rows = c.execute(query, (destination, limit)).fetchall()
-    conn.close()
     
-    return [dict(row) for row in rows]
+    results = []
+    for row in rows:
+        d = dict(row)
+        # Fetch up to 3 recent reviews for this place
+        reviews_query = "SELECT experience_review FROM places_visited WHERE place_name = ? AND experience_review IS NOT NULL AND experience_review != '' ORDER BY place_id DESC LIMIT 3"
+        reviews = c.execute(reviews_query, (d['place_name'],)).fetchall()
+        d['reviews'] = [r[0] for r in reviews]
+        results.append(d)
+        
+    conn.close()
+    return results
 
 def get_travel_stats(destination):
     """

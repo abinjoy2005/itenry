@@ -71,9 +71,9 @@ def select_best_attractions(all_attractions, budget, max_places=6, iterations=50
             reward = 0  # Invalid path
         else:
             # Reward: Average rating multiplied by a small factor of the path length 
-            # to encourage more attractions if they fit the budget.
+            # Exponentially reward higher ratings and discourage low ones
             avg_rating = total_rating / len(state) if state else 0
-            reward = avg_rating * (1 + 0.1 * len(state))
+            reward = (avg_rating ** 2) * (1 + 0.2 * len(state))
             
         # 4. Backpropagation
         curr = node

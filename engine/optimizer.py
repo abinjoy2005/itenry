@@ -24,9 +24,9 @@ def get_distance_matrix(attractions):
         for j in range(n):
             if i == j: continue
             
-            # Find any trip where i and j are adjacent in any direction
+            # Find any trip where i and j are adjacent
             q = '''
-                SELECT AVG(distance_from_prev) 
+                SELECT AVG(distance_from_prev), AVG(travel_rating)
                 FROM places_visited p1
                 JOIN places_visited p2 ON p1.trip_id = p2.trip_id 
                 WHERE (p1.place_name = ? AND p2.place_name = ? AND p2.place_order = p1.place_order + 1)
@@ -34,7 +34,12 @@ def get_distance_matrix(attractions):
             '''
             res = c.execute(q, (names[i], names[j], names[j], names[i])).fetchone()
             if res and res[0]:
-                matrix[i][j] = res[0]
+                dist = res[0]
+                rating = res[1] if res[1] else 3.0 # Default rating
+                # "Cost" for TSP: lower is better. 
+                # We divide distance by rating to prioritize higher-rated (better) paths.
+                # A 5-star 10km path is better than a 2-star 10km path.
+                matrix[i][j] = dist / (rating / 3.0) 
                 
     conn.close()
     return matrix

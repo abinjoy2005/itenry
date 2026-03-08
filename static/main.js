@@ -129,6 +129,13 @@ function addNextPlace() {
                     <input type="number" class="p-fee" required min="0" placeholder="200" value="0" oninput="calculateTotalExpense()">
                 </div>
             </div>
+            
+            <div class="form-row mt-2">
+                <div class="input-group" style="flex-basis: 100%;">
+                    <label>Experience Review (Optional)</label>
+                    <textarea class="p-review" placeholder="Tell the community about your visit... was it worth the fee?" style="width : 100%; min-height: 60px; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid var(--border-subtle); border-radius: 8px; color: var(--text-primary);"></textarea>
+                </div>
+            </div>
 
             ${placeCount > 1 ? `
             <div class="form-row" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-subtle);">
@@ -222,7 +229,8 @@ async function handleExperienceSubmit(e) {
             travel_method: card.querySelector('.p-transport') ? card.querySelector('.p-transport').value : null,
             distance_from_prev: card.querySelector('.p-distance') ? parseFloat(card.querySelector('.p-distance').value) : null,
             travel_cost: card.querySelector('.p-tcost') ? parseFloat(card.querySelector('.p-tcost').value) : 0,
-            travel_rating: card.querySelector('.p-trating') ? parseFloat(card.querySelector('.p-trating').value) : null
+            travel_rating: card.querySelector('.p-trating') ? parseFloat(card.querySelector('.p-trating').value) : null,
+            experience_review: card.querySelector('.p-review').value || ""
         };
         payload.places.push(pObj);
     });
@@ -360,6 +368,7 @@ function renderExperienceItinerary(data) {
                     <span class="place">${place.place_name}</span>
                     <span class="rating" style="color: var(--accent-yellow);">Rating: ${place.place_rating || 'N/A'}/5</span>
                     <span class="rating">Entry Fee: ₹${place.entry_fee || 0}</span>
+                    ${place.experience_review ? `<p style="font-size: 0.8rem; font-style: italic; color: var(--text-secondary); margin-top: 0.5rem;">" ${place.experience_review} "</p>` : ''}
                 </div>
             </div>
             ${!isLastNode ? '<div class="route-line"></div>' : ''}
@@ -390,7 +399,8 @@ async function generateItinerary(e) {
     showSection('loading-state');
 
     // Fake progress loading for UX purposes
-    const listItems = loadState.querySelectorAll('.loading-steps li');
+    const loadingState = document.getElementById('loading-state');
+    const listItems = loadingState.querySelectorAll('.loading-steps li');
     let delayCounter = 0;
 
     for (let i = 0; i < listItems.length; i++) {
@@ -449,16 +459,27 @@ function renderItinerary(data) {
             const isLast = (index === data.days[0].route.length - 1);
 
             const itemHTML = `
-        < div class="route-item" >
+                <div class="route-item">
                     <div class="node"></div>
                     <div class="details">
                         <span class="time">${item.time}</span>
                         <span class="place">${item.place}</span>
-                        ${item.cost ? `<span class="rating">Est. Cost: ₹${item.cost}</span>` : ''}
+                        <div class="metadata" style="display: flex; gap: 1rem; align-items: center; margin-top: 0.25rem;">
+                            <span class="rating" style="color: var(--accent-yellow);">⭐ ${item.rating || 'N/A'}/5</span>
+                            ${item.cost ? `<span class="cost">₹${item.cost}</span>` : ''}
+                        </div>
+                        ${item.reviews && item.reviews.length > 0 ? `
+                        <div class="reviews-box" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 6px;">
+                            <p style="font-weight: 500; margin-bottom: 0.25rem; color: var(--text-primary);">Community Reviews:</p>
+                            <ul style="list-style: none; padding-left: 0;">
+                                ${item.reviews.slice(0, 2).map(r => `<li style="margin-bottom: 0.25rem;">" ${r} "</li>`).join('')}
+                            </ul>
+                        </div>
+                        ` : ''}
                     </div>
-                </div >
-        ${!isLast ? '<div class="route-line"></div>' : ''}
-    `;
+                </div>
+                ${!isLast ? '<div class="route-line"></div>' : ''}
+            `;
             timeline.innerHTML += itemHTML;
         });
     }

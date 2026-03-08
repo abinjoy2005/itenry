@@ -46,6 +46,7 @@ def init_db():
             travel_method TEXT,
             travel_cost REAL,
             travel_rating REAL,
+            experience_review TEXT,
             FOREIGN KEY(trip_id) REFERENCES trip_experiences(trip_id)
         );
     ''')
