@@ -1,0 +1,6 @@
+plotly
+crewai==0.102.0
+crewai-tools
+gradio
+gradio_client==1.6.0
+fpdf

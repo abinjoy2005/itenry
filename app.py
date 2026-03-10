@@ -127,31 +127,132 @@ def api_logout():
 @token_required
 def generate_itinerary():
     data = request.json
+    origin = data.get("origin", "Unknown").strip()
     destination = data.get("destination", "").strip()
+    arrival_date = data.get("arrival_date", datetime.datetime.now().strftime("%m-%d-%Y"))
     budget = float(data.get("budget", 0))
-    # duration = int(data.get("duration", 1)) # Multi-day support can be added later
-    # style = data.get("style", "moderate")
+    duration = int(data.get("duration", 1))
+    style = data.get("style", "moderate")
+    transport = data.get("transport", "car")
+    age = int(data.get("age", 30))
+    interests = data.get("interests", [])
+    cuisine_preferences = data.get("cuisine_preferences", [])
+    has_children = data.get("children", False)
 
-    # 1. Recommendation (Fetch Community Data)
-    all_attractions = recommendation.get_top_attractions(destination)
-    
-    if not all_attractions:
-        return jsonify({'message': f'No community data found for "{destination}" yet. Try registering a past trip first!'}), 404
+    try:
+        from model.crew import TravelCrew
+        
+        inputs = {
+            'origin': origin,
+            'destination': destination,
+            'arrival_date': arrival_date,
+            'age': age,
+            'trip_duration': duration,
+            'interests': interests,
+            'cuisine_preferences': cuisine_preferences,
+            'children': has_children,
+            'budget': budget
+        }
 
-    # 2. MCTS (Select Attractions based on budget & rating)
-    selected = mcts_selector.select_best_attractions(all_attractions, budget)
+        # Initialize and kickoff the crew
+        crew_instance = TravelCrew().crew()
+        result = crew_instance.kickoff(inputs=inputs)
+        
+        itinerary_data = result.to_dict() if hasattr(result, 'to_dict') else result
 
-    # 3. Fast TSP/LKH (Optimize Route)
-    optimized_route = optimizer.solve_tsp_2opt(selected)
+        # Map to the format the frontend expects
+        formatted_days = []
+        for day in itinerary_data.get('days', []):
+            route = []
+            for act in day.get('activities', []):
+                route.append({
+                    'time': act.get('time', '09:00'),
+                    'place': act.get('name', 'Unknown'),
+                    'rating': act.get('rating', 4.0),
+                    'cost': act.get('cost', 0.0),
+                    'reviews': [act.get('description', '')]
+                })
+            formatted_days.append({
+                'day_number': day.get('day_number', 1),
+                'route': route
+            })
 
-    # 4. Time Planner & Format
-    final_plan = planner.build_itinerary(optimized_route)
-    
-    # Enrich response with destination info
-    final_plan['destination'] = destination
-    final_plan['budget'] = budget
+        final_plan = {
+            'destination': destination,
+            'budget': budget,
+            'total_cost': itinerary_data.get('total_cost', budget),
+            'days': formatted_days
+        }
 
-    return jsonify(final_plan)
+        # Add Stay & Intercity Travel Recommendation
+        best_stay = recommendation.get_best_stay(destination, user_prefs=data)
+        if best_stay:
+            final_plan['stay'] = {
+                'name': best_stay['stay_name'],
+                'price': round(float(best_stay['avg_price']), 2),
+                'rating': round(float(best_stay['avg_rating']), 1)
+            }
+            
+        intercity = recommendation.get_best_intercity_travel(origin, destination)
+        if intercity:
+            final_plan['intercity_travel'] = {
+                'method': intercity['travel_method'],
+                'cost': round(float(intercity['avg_cost']), 2),
+                'rating': round(float(intercity['avg_rating']), 1)
+            }
+
+        return jsonify(final_plan)
+
+    except Exception as e:
+        print(f"CrewAI Error: {str(e)}")
+        # Fallback to existing manual logic if CrewAI fails
+        print("Falling back to manual engine logic...")
+        
+        # 1. Recommendation (Fetch Community Data with personalized scoring)
+        all_attractions = recommendation.get_top_attractions(destination, user_prefs=data)
+        
+        if not all_attractions:
+            return jsonify({'message': f'No community data found for "{destination}" yet. Try registering a past trip first!'}), 404
+
+        # 2. MCTS (Select Attractions based on budget & rating)
+        selected = mcts_selector.select_best_attractions(all_attractions, budget, duration=duration)
+
+        # 3. Fast TSP/LKH (Optimize Route)
+        optimized_route = optimizer.solve_tsp_2opt(selected)
+
+        # 4. Time Planner & Format
+        # Attach distances to route
+        for i in range(len(optimized_route)):
+            if i > 0:
+                dist = recommendation.get_avg_distance(optimized_route[i-1]['place_name'], optimized_route[i]['place_name'])
+                optimized_route[i]['distance_to_prev'] = dist
+            else:
+                optimized_route[i]['distance_to_prev'] = 0.0
+
+        city_transport_cost = recommendation.get_avg_transport_cost(destination, transport)
+        final_plan = planner.build_itinerary(optimized_route, duration=duration, transport=transport, avg_travel_cost=city_transport_cost)
+        
+        # 5. Add Stay & Intercity Travel Recommendation
+        best_stay = recommendation.get_best_stay(destination, user_prefs=data)
+        if best_stay:
+            final_plan['stay'] = {
+                'name': best_stay['stay_name'],
+                'price': round(float(best_stay['avg_price']), 2),
+                'rating': round(float(best_stay['avg_rating']), 1)
+            }
+            
+        intercity = recommendation.get_best_intercity_travel(origin, destination)
+        if intercity:
+            final_plan['intercity_travel'] = {
+                'method': intercity['travel_method'],
+                'cost': round(float(intercity['avg_cost']), 2),
+                'rating': round(float(intercity['avg_rating']), 1)
+            }
+        
+        final_plan['destination'] = destination
+        final_plan['budget'] = budget
+
+        return jsonify(final_plan)
 
 @app.route('/api/experiences', methods=['POST'])
 @token_required
@@ -167,11 +268,15 @@ def submit_experience():
         
         # 1. Save the main trip experience row
         c.execute('''
-            INSERT INTO trip_experiences (user_id, destination, trip_date, companion_type, stay_name, stay_price, stay_rating, total_expense)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO trip_experiences 
+            (user_id, origin, destination, trip_date, age, companion_type, has_children, interests, cuisine_preferences, trip_duration, main_transport, travel_style, stay_name, stay_price, stay_rating, total_expense)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING trip_id
         ''', (
-            user_id, data.get('destination'), data.get('trip_date'), data.get('companion_type'), 
+            user_id, data.get('origin'), data.get('destination'), data.get('trip_date'), 
+            data.get('age'), data.get('companion_type'), data.get('has_children', False),
+            ",".join(data.get('interests', [])), ",".join(data.get('cuisine_preferences', [])),
+            data.get('trip_duration'), data.get('main_transport'), data.get('travel_style'),
             data.get('stay_name'), data.get('stay_price', 0), data.get('stay_rating'), data.get('total_expense', 0)
         ))
         

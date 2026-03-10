@@ -455,19 +455,51 @@ function renderItinerary(data) {
     timeline.innerHTML = '';
 
     if (data.days && data.days.length > 0) {
-        data.days[0].route.forEach((item, index) => {
-            const isLast = (index === data.days[0].route.length - 1);
+        data.days.forEach(day => {
+            // Add Day Header
+            const dayHeader = `
+                <div class="day-header" style="margin-top: 2rem; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid var(--border-subtle);">
+                    <h3 style="color: var(--brand-primary); display: flex; align-items: center; gap: 0.5rem;">
+                        <span style="background: var(--brand-primary); color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">D</span>
+                        Day ${day.day_number}
+                    </h3>
+                </div>
+            `;
+            timeline.innerHTML += dayHeader;
 
-            const itemHTML = `
-                <div class="route-item">
-                    <div class="node"></div>
-                    <div class="details">
-                        <span class="time">${item.time}</span>
-                        <span class="place">${item.place}</span>
-                        <div class="metadata" style="display: flex; gap: 1rem; align-items: center; margin-top: 0.25rem;">
-                            <span class="rating" style="color: var(--accent-yellow);">⭐ ${item.rating || 'N/A'}/5</span>
-                            ${item.cost ? `<span class="cost">₹${item.cost}</span>` : ''}
-                        </div>
+            day.route.forEach((item, index) => {
+                const isLast = (index === day.route.length - 1);
+
+                const itemHTML = `
+                    <div class="route-item">
+                        <div class="node"></div>
+                        <div class="details">
+                            ${item.transport ? `
+                                <div class="travel-bridge" style="
+                                    background: rgba(var(--brand-primary-rgb), 0.05);
+                                    border: 1px dashed rgba(var(--brand-primary-rgb), 0.2);
+                                    border-radius: 8px;
+                                    padding: 0.5rem 0.75rem;
+                                    margin-bottom: 0.75rem;
+                                    display: flex;
+                                    justify-content: space-between;
+                                    align-items: center;
+                                    font-size: 0.75rem;
+                                ">
+                                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                        <span style="font-size: 1rem;">${getTransportEmoji(item.transport)}</span>
+                                        <span style="font-weight: 600; color: var(--text-primary); text-transform: uppercase;">Via ${item.transport}</span>
+                                        <span style="color: var(--text-secondary); margin-left: 0.25rem;">• ${item.distance || '0'} km</span>
+                                    </div>
+                                    <div style="font-weight: 700; color: var(--brand-primary);">Est. ₹${item.travel_cost || '0'}</div>
+                                </div>
+                            ` : ''}
+                            <span class="time">${item.time}</span>
+                            <span class="place">${item.place}</span>
+                            <div class="metadata" style="display: flex; gap: 1rem; align-items: center; margin-top: 0.25rem;">
+                                <span class="rating" style="color: var(--accent-yellow);">⭐ ${item.rating || 'N/A'}/5</span>
+                                ${item.cost ? `<span class="cost">₹${item.cost}</span>` : ''}
+                            </div>
                         ${item.reviews && item.reviews.length > 0 ? `
                         <div class="reviews-box" style="margin-top: 0.75rem; font-size: 0.85rem; color: var(--text-secondary); background: rgba(255,255,255,0.03); padding: 0.75rem; border-radius: 6px;">
                             <p style="font-weight: 500; margin-bottom: 0.25rem; color: var(--text-primary);">Community Reviews:</p>
@@ -481,8 +513,20 @@ function renderItinerary(data) {
                 ${!isLast ? '<div class="route-line"></div>' : ''}
             `;
             timeline.innerHTML += itemHTML;
+            });
         });
     }
+}
+
+function getTransportEmoji(method) {
+    const m = method.toLowerCase();
+    if (m.includes('car')) return '🚗';
+    if (m.includes('bus')) return '🚌';
+    if (m.includes('train')) return '🚆';
+    if (m.includes('flight') || m.includes('plane')) return '✈️';
+    if (m.includes('walk')) return '🚶';
+    if (m.includes('bike') || m.includes('cycle')) return '🚲';
+    return '🗺️';
 }
 
 function resetGenerateBtn() {

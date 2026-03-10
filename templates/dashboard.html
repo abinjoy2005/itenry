@@ -63,26 +63,45 @@
             <form id="generate-form" onsubmit="generateItinerary(event)">
                 <div class="form-row">
                     <div class="input-group">
-                        <label for="destination">Destination</label>
-                        <input type="text" id="destination" required placeholder="e.g. Munnar, Kerala">
+                        <label for="origin">Where are you travelling from?</label>
+                        <input type="text" id="origin" required placeholder="e.g. Cochin, Kerala">
                     </div>
                     <div class="input-group">
-                        <label for="budget">Total Budget (₹)</label>
-                        <input type="number" id="budget" required min="1000" placeholder="5000">
+                        <label for="destination">Where are you going?</label>
+                        <input type="text" id="destination" required placeholder="e.g. Munnar, Kerala">
                     </div>
                 </div>
 
                 <div class="form-row">
                     <div class="input-group">
-                        <label for="duration">Trip Duration (Days)</label>
-                        <input type="number" id="duration" required min="1" max="14" placeholder="e.g. 2">
+                        <label for="arrival_date">Approximate Arrival Date</label>
+                        <input type="date" id="arrival_date" required>
                     </div>
                     <div class="input-group">
-                        <label for="transport">Travel Method</label>
+                        <label for="duration">Trip Duration (Days)</label>
+                        <input type="number" id="duration" required min="1" max="14" value="5">
+                    </div>
+                    <div class="input-group">
+                        <label for="age">Your Age</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="age" min="15" max="90" value="30" step="1"
+                                oninput="this.nextElementSibling.value = this.value">
+                            <output style="font-weight: 600; color: var(--brand-primary); min-width: 25px;">30</output>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="budget">Total Budget (₹)</label>
+                        <input type="number" id="budget" required min="1000" value="5000">
+                    </div>
+                    <div class="input-group">
+                        <label for="transport">Preferred Transport</label>
                         <select id="transport" required>
                             <option value="bus">Bus</option>
                             <option value="train">Train</option>
-                            <option value="car">Car</option>
+                            <option value="car" selected>Car / Taxi</option>
                             <option value="flight">Flight</option>
                         </select>
                     </div>
@@ -96,7 +115,50 @@
                     </div>
                 </div>
 
-                <button type="submit" class="btn btn-primary btn-full generate-btn" id="generate-btn">
+                <div class="mt-2">
+                    <span class="section-title-sm">Select Your Interests</span>
+                    <div class="checkbox-group" id="interests-group">
+                        <label class="checkbox-item"><input type="checkbox" name="interest" value="Museums">
+                            Museums</label>
+                        <label class="checkbox-item"><input type="checkbox" name="interest" value="Outdoor Adventures">
+                            Outdoor Adventures</label>
+                        <label class="checkbox-item"><input type="checkbox" name="interest" value="Shopping">
+                            Shopping</label>
+                        <label class="checkbox-item"><input type="checkbox" name="interest"
+                                value="Children's Entertainment"> Children's Ent.</label>
+                        <label class="checkbox-item"><input type="checkbox" name="interest"
+                                value="Off the beat activities"> Off the beat</label>
+                        <label class="checkbox-item"><input type="checkbox" name="interest" value="Night Life"> Night
+                            Life</label>
+                    </div>
+                </div>
+
+                <div class="mt-2">
+                    <span class="section-title-sm">Cuisine Preferences</span>
+                    <div class="checkbox-group" id="cuisine-group">
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="Ethnic">
+                            Ethnic</label>
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="American">
+                            American</label>
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="Italian">
+                            Italian</label>
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="Mexican">
+                            Mexican</label>
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="Chinese">
+                            Chinese</label>
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="Indian" checked>
+                            Indian</label>
+                        <label class="checkbox-item"><input type="checkbox" name="cuisine" value="Vegan"> Vegan</label>
+                    </div>
+                </div>
+
+                <div class="form-row mt-2" style="justify-content: flex-start;">
+                    <label class="checkbox-item" style="font-size: 1rem; color: var(--text-primary);">
+                        <input type="checkbox" id="has_children"> Children travelling with you?
+                    </label>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-full generate-btn mt-4" id="generate-btn">
                     <span class="btn-text">Generate AI Itinerary</span>
                     <div class="loader-spinner hidden" id="generate-loader"></div>
                 </button>
@@ -106,22 +168,58 @@
         <!-- Loading State View -->
         <section class="loading-state hidden" id="loading-state">
             <div class="pulse-ring"></div>
-            <h3>Generating Optimal Route</h3>
+            <h3>Generating Community Plan</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Our system is analyzing community data for the
+                best experience...</p>
             <ul class="loading-steps">
-                <li class="active">Aggregating Community Data...</li>
-                <li>MCTS Exploring Attractions...</li>
-                <li>LKH Optimizing Travel Path...</li>
-                <li>Verifying Time & Cost Constraints...</li>
+                <li class="active">Personalized Activity Planner Researching...</li>
+                <li>Restaurant Scout finding scenic dots...</li>
+                <li>Interest Scout tailoring to your profile...</li>
+                <li>Itinerary Compiler composing final document...</li>
             </ul>
         </section>
 
         <!-- Itinerary Results View -->
         <section class="results-section hidden" id="results-section">
             <div class="results-header">
-                <h2>Your Optimal Route</h2>
+                <h2>Your Community-Driven Journey</h2>
                 <div class="budget-badge">
-                    <span class="label">Total Cost</span>
+                    <span class="label">Estimated Total</span>
                     <span class="value" id="result-cost">₹0</span>
+                </div>
+            </div>
+
+            <div id="intercity-info-box" class="glass-card mockup-card mb-4 hidden"
+                style="border-left: 4px solid var(--brand-primary);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span
+                            style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Recommended
+                            Travel to Destination</span>
+                        <h3 id="result-intercity-method" style="margin: 0.25rem 0;">Travel via Flight</h3>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="display: block; font-size: 1.25rem; font-weight: 800; color: var(--brand-primary);"
+                            id="result-intercity-cost">₹4,500</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">average cost</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="stay-info-box" class="glass-card mockup-card mb-4 hidden"
+                style="border-left: 4px solid var(--accent-yellow);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span
+                            style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px;">Recommended
+                            Stay</span>
+                        <h3 id="result-stay-name" style="margin: 0.25rem 0;">Grand Palace Hotel</h3>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="display: block; font-size: 1.25rem; font-weight: 800; color: var(--brand-primary);"
+                            id="result-stay-price">₹2,500</span>
+                        <span style="font-size: 0.8rem; color: var(--text-secondary);">per night</span>
+                    </div>
                 </div>
             </div>
 
@@ -129,10 +227,11 @@
                 <!-- Javascript will inject the timeline nodes here -->
             </div>
 
-            <div class="community-feedback glass-card mockup-card mt-4">
+            <div class="community-feedback glass-card mockup-card mt-4" style="max-width: 100%;">
                 <h3>Trip Completed?</h3>
                 <p>Contribute back to the community by logging your experience.</p>
-                <button class="btn btn-secondary mt-2">Log Community Data</button>
+                <button class="btn btn-secondary mt-2" onclick="showSection('experience-section')">Log My
+                    Journey</button>
             </div>
 
         </section>
@@ -151,37 +250,117 @@
                     <h3>1. Trip Information</h3>
                     <div class="form-row mt-2">
                         <div class="input-group">
+                            <label for="exp_origin">Origin City</label>
+                            <input type="text" id="exp_origin" required placeholder="e.g. Cochin">
+                        </div>
+                        <div class="input-group">
                             <label for="exp_dest">Main Destination</label>
                             <input type="text" id="exp_dest" required placeholder="e.g. Munnar">
                         </div>
                         <div class="input-group">
-                            <label for="exp_date">Trip Date</label>
-                            <input type="date" id="exp_date">
+                            <label for="exp_date">Trip Start Date</label>
+                            <input type="date" id="exp_date" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="input-group">
+                            <label for="exp_age">Traveler Age at Trip</label>
+                            <input type="number" id="exp_age" min="15" max="90" value="30">
                         </div>
                         <div class="input-group">
-                            <label for="exp_companion">Companion Type (Optional)</label>
+                            <label for="exp_companion">Companion Type</label>
                             <select id="exp_companion">
                                 <option value="solo">Solo</option>
                                 <option value="friends">Friends</option>
-                                <option value="family">Family</option>
+                                <option value="family" selected>Family</option>
+                                <option value="couple">Couple</option>
                             </select>
                         </div>
+                        <div class="input-group">
+                            <label for="exp_duration">Trip Duration (Days)</label>
+                            <input type="number" id="exp_duration" min="1" max="14" value="5">
+                        </div>
                     </div>
+
                     <div class="form-row">
                         <div class="input-group">
-                            <label for="exp_stay_name">Stay Name (Optional)</label>
-                            <input type="text" id="exp_stay_name" placeholder="e.g. Green Valley Hotel">
+                            <label for="exp_transport">Main Transport</label>
+                            <select id="exp_transport">
+                                <option value="bus">Bus</option>
+                                <option value="train">Train</option>
+                                <option value="car" selected>Car / Taxi</option>
+                                <option value="flight">Flight</option>
+                            </select>
                         </div>
                         <div class="input-group">
-                            <label for="exp_stay_price">Stay Price (Total ₹)</label>
-                            <input type="number" id="exp_stay_price" placeholder="e.g. 1500" value="0"
-                                oninput="calculateTotalExpense()">
+                            <label for="exp_style">Travel Style</label>
+                            <select id="exp_style">
+                                <option value="relaxed">Relaxed</option>
+                                <option value="moderate" selected>Moderate</option>
+                                <option value="intensive">Intensive</option>
+                            </select>
                         </div>
-                        <div class="input-group">
-                            <label for="exp_stay_rating">Stay Rating (1-5)</label>
-                            <input type="number" id="exp_stay_rating" min="1" max="5" step="0.1" placeholder="e.g. 4.5">
+                        <div class="input-group" style="padding-top: 25px;">
+                            <label class="checkbox-item">
+                                <input type="checkbox" id="exp_has_children"> Children were present?
+                            </label>
                         </div>
                     </div>
+
+                    <div class="mt-4">
+                        <span class="section-title-sm">Select Your Interests</span>
+                        <div class="checkbox-group" id="exp-interests-group">
+                            <label class="checkbox-item"><input type="checkbox" name="exp_interest" value="Museums">
+                                Museums</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_interest"
+                                    value="Outdoor Adventures"> Outdoor Adventures</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_interest" value="Shopping">
+                                Shopping</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_interest"
+                                    value="Children's Entertainment"> Children's Ent.</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_interest"
+                                    value="Off the beat activities"> Off the beat</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_interest" value="Night Life">
+                                Night Life</label>
+                        </div>
+                    </div>
+
+                    <div class="mt-2">
+                        <span class="section-title-sm">Cuisine Preferences</span>
+                        <div class="checkbox-group" id="exp-cuisine-group">
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="Ethnic">
+                                Ethnic</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="American">
+                                American</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="Italian">
+                                Italian</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="Mexican">
+                                Mexican</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="Chinese">
+                                Chinese</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="Indian"
+                                    checked> Indian</label>
+                            <label class="checkbox-item"><input type="checkbox" name="exp_cuisine" value="Vegan">
+                                Vegan</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="input-group">
+                        <label for="exp_stay_name">Stay Name (Optional)</label>
+                        <input type="text" id="exp_stay_name" placeholder="e.g. Green Valley Hotel">
+                    </div>
+                    <div class="input-group">
+                        <label for="exp_stay_price">Stay Price (Total ₹)</label>
+                        <input type="number" id="exp_stay_price" placeholder="e.g. 1500" value="0"
+                            oninput="calculateTotalExpense()">
+                    </div>
+                    <div class="input-group">
+                        <label for="exp_stay_rating">Stay Rating (1-5)</label>
+                        <input type="number" id="exp_stay_rating" min="1" max="5" step="0.1" placeholder="e.g. 4.5">
+                    </div>
+                </div>
                 </div>
 
                 <!-- 2. Places Visited (Dynamic Container) -->

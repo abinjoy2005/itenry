@@ -1,47 +1,69 @@
+import math
 from datetime import datetime, timedelta
 
-def build_itinerary(route: list, start_time: str = "09:00", stay_per_place: int = 120) -> dict:
+def build_itinerary(route: list, duration: int = 1, transport: str = "car", avg_travel_cost: float = 100.0, start_time: str = "09:00", stay_per_place: int = 120) -> dict:
     """
-    Transforms an optimized route into a timed itinerary with estimated costs.
-    Handles a single-day itinerary for now.
+    Transforms an optimized route into a timed itinerary with estimated costs, 
+    distributing attractions across multiple days and including travel methods and costs.
     """
     if not route:
         return {"days": [], "total_cost": 0.0}
 
-    itinerary = []
-    # Start at 09:00 AM
-    current_time = datetime.strptime(start_time, "%H:%M")
+    # Determine places per day (at least 1, max depends on route length)
+    places_per_day = max(1, math.ceil(len(route) / duration))
+    
+    itinerary_days = []
     total_cost = 0.0
     
-    for i, place in enumerate(route):
-        # 1. Travel Time Simulation
-        if i > 0:
-            # Assumption: ~30 minutes travel between nearby attractions 
-            current_time += timedelta(minutes=30)
-            # Add a small travel cost (avg 100 per hop)
-            total_cost += 100.0
-            
-        # 2. Place Visit Entry
-        visit_entry = {
-            "time": current_time.strftime("%H:%M"),
-            "place": place.get('place_name', 'Unknown'),
-            "cost": float(place.get('avg_fee', 0.0)),
-            "rating": round(float(place.get('avg_rating', 0.0)), 1),
-            "reviews": place.get('reviews', [])
-        }
-        itinerary.append(visit_entry)
-        total_cost += float(place.get('avg_fee', 0.0))
+    for day_num in range(1, duration + 1):
+        day_route = []
+        current_time = datetime.strptime(start_time, "%H:%M")
+        # Calculate slice for this day
+        start_idx = (day_num - 1) * places_per_day
+        end_idx = min(day_num * places_per_day, len(route))
+        day_route_list = route[start_idx:end_idx]
         
-        # 3. Time Spent at Attraction
-        current_time += timedelta(minutes=stay_per_place)
+        current_time = datetime.strptime(start_time, "%H:%M")
+        
+        # Add travel cost between days (except morning of Day 1)
+        if day_num > 1 and day_route_list:
+            total_cost += avg_travel_cost
+
+        if not day_route_list and day_num > 1:
+            # No more places to show, but still show the day empty or break
+            # Usually better to break if we ran out of attractions
+            break
+
+        for i, place in enumerate(day_route_list):
+            # 1. Travel Time Simulation (between places in a day)
+            if i > 0:
+                current_time += timedelta(minutes=30)
+                total_cost += avg_travel_cost
+                
+            # 2. Place Visit Entry
+            visit_entry = {
+                "time": current_time.strftime("%H:%M"),
+                "place": place.get('place_name', 'Unknown'),
+                "cost": float(place.get('avg_fee', 0.0)),
+                "rating": round(float(place.get('avg_rating', 0.0)), 1),
+                "reviews": place.get('reviews', []),
+                "transport": transport if (i > 0 or day_num > 1) else None,
+                "travel_cost": avg_travel_cost if (i > 0 or day_num > 1) else 0.0,
+                "distance": place.get('distance_to_prev', 0.0)
+            }
+            day_route.append(visit_entry)
+            total_cost += float(place.get('avg_fee', 0.0))
+            
+            # 3. Visit Duration
+            current_time += timedelta(minutes=stay_per_place)
+            
+        itinerary_days.append({
+            "day_number": day_num,
+            "route": day_route
+        })
         
     return {
-        "days": [
-            {
-                "day_number": 1,
-                "route": itinerary
-            }
-        ],
+        "days": itinerary_days,
         "total_cost": round(total_cost, 2)
     }
 

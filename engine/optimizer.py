@@ -1,7 +1,10 @@
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
+from dotenv import load_dotenv
 
-DB_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'travel.db')
+load_dotenv()
+DATABASE_URL = os.getenv('DATABASE_URL')
 
 def get_distance_matrix(attractions):
     """
@@ -14,34 +17,38 @@ def get_distance_matrix(attractions):
     for i in range(n):
         matrix[i][i] = 0.0
 
-    if not os.path.exists(DB_PATH):
+    if not DATABASE_URL:
         return matrix
 
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    
-    for i in range(n):
-        for j in range(n):
-            if i == j: continue
-            
-            # Find any trip where i and j are adjacent
-            q = '''
-                SELECT AVG(distance_from_prev), AVG(travel_rating)
-                FROM places_visited p1
-                JOIN places_visited p2 ON p1.trip_id = p2.trip_id 
-                WHERE (p1.place_name = ? AND p2.place_name = ? AND p2.place_order = p1.place_order + 1)
-                   OR (p1.place_name = ? AND p2.place_name = ? AND p1.place_order = p2.place_order + 1)
-            '''
-            res = c.execute(q, (names[i], names[j], names[j], names[i])).fetchone()
-            if res and res[0]:
-                dist = res[0]
-                rating = res[1] if res[1] else 3.0 # Default rating
-                # "Cost" for TSP: lower is better. 
-                # We divide distance by rating to prioritize higher-rated (better) paths.
-                # A 5-star 10km path is better than a 2-star 10km path.
-                matrix[i][j] = dist / (rating / 3.0) 
+    try:
+        conn = psycopg2.connect(DATABASE_URL)
+        c = conn.cursor()
+        
+        for i in range(n):
+            for j in range(n):
+                if i == j: continue
                 
-    conn.close()
+                # Find any trip where i and j are adjacent
+                q = '''
+                    SELECT AVG(p2.distance_from_prev), AVG(p2.travel_rating)
+                    FROM places_visited p1
+                    JOIN places_visited p2 ON p1.trip_id = p2.trip_id 
+                    WHERE (p1.place_name = %s AND p2.place_name = %s AND p2.place_order = p1.place_order + 1)
+                       OR (p1.place_name = %s AND p2.place_name = %s AND p1.place_order = p2.place_order + 1)
+                '''
+                c.execute(q, (names[i], names[j], names[j], names[i]))
+                res = c.fetchone()
+                if res and res[0]:
+                    dist = res[0]
+                    rating = res[1] if res[1] else 3.0 # Default rating
+                    # "Cost" for TSP: lower is better. 
+                    # We divide distance by rating to prioritize higher-rated (better) paths.
+                    matrix[i][j] = dist / (rating / 3.0) 
+                    
+        conn.close()
+    except Exception as e:
+        print(f"Optimizer Optimizer DB Error: {e}")
+        
     return matrix
 
 def solve_tsp_2opt(attractions: list) -> list:
