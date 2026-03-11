@@ -435,6 +435,10 @@ async function generateItinerary(e) {
         // Let the UX loader finish its sequence before rendering
         setTimeout(() => {
             renderItinerary(data);
+            // Render the Map
+            if (data.days && data.days.length > 0) {
+                renderMap(data);
+            }
         }, delayCounter + 500);
 
     } catch (err) {
@@ -442,6 +446,101 @@ async function generateItinerary(e) {
         console.error(err);
         resetGenerateBtn();
         showSection('planner-section');
+    }
+}
+
+// Global map instance
+let itineraryMap = null;
+
+async function renderMap(itineraryData) {
+    const mapContainer = document.getElementById('itinerary-map');
+    mapContainer.style.display = 'block';
+
+    if (!itineraryMap) {
+        itineraryMap = L.map('itinerary-map').setView([10.0, 76.0], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(itineraryMap);
+    } else {
+        // Clear existing markers and lines
+        itineraryMap.eachLayer((layer) => {
+            if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                itineraryMap.removeLayer(layer);
+            }
+        });
+    }
+
+    const { destination, days } = itineraryData;
+    const placesToGeocode = [];
+
+    // Extract all unique places
+    days.forEach(day => {
+        day.route.forEach(item => {
+            if (item.place && item.place !== "Unknown") {
+                placesToGeocode.push(item);
+            }
+        });
+    });
+
+    if (placesToGeocode.length === 0) return;
+
+    // Show a small loader message in the map container (optional, but good UX)
+    mapContainer.style.opacity = '0.7';
+
+    const coordinates = [];
+    const markers = [];
+
+    // Helper function for artificial delay
+    const delay = ms => new Promise(res => setTimeout(res, ms));
+
+    for (let i = 0; i < placesToGeocode.length; i++) {
+        const item = placesToGeocode[i];
+        try {
+            // Respect Nominatim's 1 request/second policy
+            if (i > 0) await delay(1100); 
+            
+            const query = `${item.place}, ${destination}`;
+            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+            const data = await response.json();
+
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat);
+                const lon = parseFloat(data[0].lon);
+                coordinates.push([lat, lon]);
+
+                // Create marker
+                const marker = L.marker([lat, lon]).addTo(itineraryMap);
+                
+                // Add popup
+                const emoji = item.transport ? getTransportEmoji(item.transport) : '📍';
+                marker.bindPopup(`<b>${item.place}</b><br>Arrive: ${item.time} ${emoji}`);
+                markers.push(marker);
+            } else {
+                console.warn(`Could not geocode location: ${query}`);
+            }
+        } catch (err) {
+            console.error(`Geocoding failed for ${item.place}:`, err);
+        }
+    }
+
+    mapContainer.style.opacity = '1.0';
+
+    if (coordinates.length > 0) {
+        // Draw the connecting path
+        const polyline = L.polyline(coordinates, {
+            color: '#7B2CBF', // Brand primary color
+            weight: 3,
+            opacity: 0.8,
+            dashArray: '10, 10'
+        }).addTo(itineraryMap);
+
+        // Adjust view to fit all markers
+        itineraryMap.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+        
+        // Open the popup for the first location
+        if (markers.length > 0) {
+            markers[0].openPopup();
+        }
     }
 }
 
