@@ -470,8 +470,17 @@ async function renderMap(itineraryData) {
         });
     }
 
-    const { destination, days } = itineraryData;
+    const { destination, days, stay } = itineraryData;
     const placesToGeocode = [];
+
+    // Add Stay as the first origin point if it exists
+    if (stay && stay.name) {
+        placesToGeocode.push({
+            place: stay.name,
+            time: 'Check-in',
+            transport: 'stay'
+        });
+    }
 
     // Extract all unique places
     days.forEach(day => {
@@ -625,6 +634,7 @@ function getTransportEmoji(method) {
     if (m.includes('flight') || m.includes('plane')) return '✈️';
     if (m.includes('walk')) return '🚶';
     if (m.includes('bike') || m.includes('cycle')) return '🚲';
+    if (m.includes('stay') || m.includes('hotel')) return '🏨';
     return '🗺️';
 }
 
