@@ -575,6 +575,25 @@ function renderItinerary(data) {
             `;
             timeline.innerHTML += dayHeader;
 
+            // Inject Stay at the beginning of Day 1
+            if (day.day_number === 1 && data.stay && data.stay.name) {
+                const stayHTML = `
+                    <div class="route-item" style="margin-bottom: 2rem;">
+                        <div class="node" style="background: var(--accent-yellow); box-shadow: 0 0 10px rgba(var(--accent-yellow-rgb), 0.5); border-color: rgba(var(--accent-yellow-rgb), 0.2);"></div>
+                        <div class="details" style="background: rgba(var(--accent-yellow-rgb), 0.05); border: 1px solid rgba(var(--accent-yellow-rgb), 0.1);">
+                            <div style="font-size: 0.8rem; color: var(--accent-yellow); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 0.25rem;">Check-in</div>
+                            <h3 class="place-name">${data.stay.name}</h3>
+                            <div class="meta" style="margin-top: 0.5rem; display: flex; gap: 1rem; flex-wrap: wrap;">
+                                <span class="time">🏨 Accommodation</span>
+                                <span class="rating" style="color: var(--accent-yellow);">⭐ ${data.stay.rating || 'N/A'}/5</span>
+                                <span class="cost">₹${data.stay.price} total</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                timeline.innerHTML += stayHTML;
+            }
+
             day.route.forEach((item, index) => {
                 const isLast = (index === day.route.length - 1);
 
