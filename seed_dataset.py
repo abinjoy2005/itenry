@@ -35,6 +35,23 @@ def seed_data(count=10000):
     cuisines_list = ["Ethnic", "American", "Italian", "Mexican", "Chinese", "Indian", "Vegan"]
     companions = ["solo", "friends", "family", "couple"]
     transports = ["bus", "car", "train", "walking"]
+    reviews_list = [
+        "Absolutely loved it, highly recommend!",
+        "It was okay, a bit crowded but worth seeing.",
+        "Not what I expected, but still a decent experience.",
+        "Fantastic place! Will definitely visit again.",
+        "The views were breathtaking, 10/10.",
+        "A bit overpriced for what you get.",
+        "Great for families and kids, we all enjoyed it.",
+        "A must-visit location if you are in town.",
+        "Peaceful and serene, a perfect getaway.",
+        "Incredible history and culture to absorb here.",
+        "Average experience, could have been better.",
+        "Truly a hidden gem!",
+        "Amazing vibe, great food around.",
+        "Too touristy for my taste, but still nice.",
+        "One of the highlights of my trip!"
+    ]
 
     batch_size = 500
     
@@ -73,7 +90,7 @@ def seed_data(count=10000):
                     total_exp += (p_fee + t_cost)
                     places_to_insert.append((
                         trip_id, p_idx+1, p_name, p_rate, float(p_fee), float(random.randint(1, 50)), 
-                        random.choice(transports), float(t_cost), 4.0, "Great experience!"
+                        random.choice(transports), float(t_cost), round(random.uniform(1.0, 5.0), 1), random.choice(reviews_list)
                     ))
                 
                 # Update total_expense for the trip

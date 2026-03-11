@@ -27,18 +27,39 @@ def build_itinerary(route: list, duration: int = 1, transport: str = "car", avg_
         
         # Add travel cost between days (except morning of Day 1)
         if day_num > 1 and day_route_list:
-            total_cost += avg_travel_cost
+            pass # We will handle total_cost below based on segment cost
 
         if not day_route_list and day_num > 1:
-            # No more places to show, but still show the day empty or break
-            # Usually better to break if we ran out of attractions
             break
 
         for i, place in enumerate(day_route_list):
+            dist = place.get('distance_to_prev', 0.0)
+            
+            # Determine dynamic transport and cost
+            segment_transport = None
+            segment_cost = 0.0
+            
+            is_first_of_trip = (day_num == 1 and i == 0)
+            
+            if not is_first_of_trip:
+                if dist <= 1.5 and dist > 0:
+                    segment_transport = "walking"
+                    segment_cost = 0.0
+                else:
+                    segment_transport = transport
+                    if transport == "car":
+                        segment_cost = round((dist if dist > 0 else 5.0) * 15.0)
+                    elif transport == "bus":
+                        segment_cost = 30.0
+                    elif transport == "bike":
+                        segment_cost = round((dist if dist > 0 else 5.0) * 5.0)
+                    else:
+                        segment_cost = avg_travel_cost
+            
             # 1. Travel Time Simulation (between places in a day)
-            if i > 0:
+            if not is_first_of_trip:
                 current_time += timedelta(minutes=30)
-                total_cost += avg_travel_cost
+                total_cost += segment_cost
                 
             # 2. Place Visit Entry
             visit_entry = {
@@ -47,9 +68,9 @@ def build_itinerary(route: list, duration: int = 1, transport: str = "car", avg_
                 "cost": float(place.get('avg_fee', 0.0)),
                 "rating": round(float(place.get('avg_rating', 0.0)), 1),
                 "reviews": place.get('reviews', []),
-                "transport": transport if (i > 0 or day_num > 1) else None,
-                "travel_cost": avg_travel_cost if (i > 0 or day_num > 1) else 0.0,
-                "distance": place.get('distance_to_prev', 0.0)
+                "transport": segment_transport,
+                "travel_cost": segment_cost,
+                "distance": dist
             }
             day_route.append(visit_entry)
             total_cost += float(place.get('avg_fee', 0.0))

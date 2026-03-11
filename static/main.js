@@ -449,106 +449,115 @@ async function generateItinerary(e) {
     }
 }
 
-// Global map instance
-let itineraryMap = null;
+// Global maps object mapping day numbers to Leaflet instances
+let itineraryMaps = {};
 
 async function renderMap(itineraryData) {
-    const mapContainer = document.getElementById('itinerary-map');
-    mapContainer.style.display = 'block';
-
-    if (!itineraryMap) {
-        itineraryMap = L.map('itinerary-map').setView([10.0, 76.0], 8);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(itineraryMap);
-    } else {
-        // Clear existing markers and lines
-        itineraryMap.eachLayer((layer) => {
-            if (layer instanceof L.Marker || layer instanceof L.Polyline) {
-                itineraryMap.removeLayer(layer);
-            }
-        });
-    }
-
     const { destination, days, stay } = itineraryData;
-    const placesToGeocode = [];
 
-    // Add Stay as the first origin point if it exists
-    if (stay && stay.name) {
-        placesToGeocode.push({
-            place: stay.name,
-            time: 'Check-in',
-            transport: 'stay'
-        });
-    }
+    // Helper function for artificial delay
+    const delay = ms => new Promise(res => setTimeout(res, ms));
+    let isFirstReq = true;
 
-    // Extract all unique places
-    days.forEach(day => {
+    for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+        const day = days[dayIndex];
+        const mapContainerId = `map-day-${day.day_number}`;
+        const mapContainer = document.getElementById(mapContainerId);
+        
+        if (!mapContainer) continue;
+        
+        mapContainer.style.display = 'block';
+
+        // Clean up pre-existing map instance for this day if re-generating
+        if (itineraryMaps[day.day_number]) {
+            itineraryMaps[day.day_number].off();
+            itineraryMaps[day.day_number].remove();
+        }
+
+        itineraryMaps[day.day_number] = L.map(mapContainerId).setView([10.0, 76.0], 8);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(itineraryMaps[day.day_number]);
+
+        const currentMap = itineraryMaps[day.day_number];
+
+        const placesToGeocode = [];
+
+        // Add Stay as the first origin point if it exists for Day 1
+        if (day.day_number === 1 && stay && stay.name) {
+            placesToGeocode.push({
+                place: stay.name,
+                time: 'Check-in',
+                transport: 'stay'
+            });
+        }
+
+        // Extract all places for this single day
         day.route.forEach(item => {
             if (item.place && item.place !== "Unknown") {
                 placesToGeocode.push(item);
             }
         });
-    });
 
-    if (placesToGeocode.length === 0) return;
-
-    // Show a small loader message in the map container (optional, but good UX)
-    mapContainer.style.opacity = '0.7';
-
-    const coordinates = [];
-    const markers = [];
-
-    // Helper function for artificial delay
-    const delay = ms => new Promise(res => setTimeout(res, ms));
-
-    for (let i = 0; i < placesToGeocode.length; i++) {
-        const item = placesToGeocode[i];
-        try {
-            // Respect Nominatim's 1 request/second policy
-            if (i > 0) await delay(1100); 
-            
-            const query = `${item.place}, ${destination}`;
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
-            const data = await response.json();
-
-            if (data && data.length > 0) {
-                const lat = parseFloat(data[0].lat);
-                const lon = parseFloat(data[0].lon);
-                coordinates.push([lat, lon]);
-
-                // Create marker
-                const marker = L.marker([lat, lon]).addTo(itineraryMap);
-                
-                // Add popup
-                const emoji = item.transport ? getTransportEmoji(item.transport) : '📍';
-                marker.bindPopup(`<b>${item.place}</b><br>Arrive: ${item.time} ${emoji}`);
-                markers.push(marker);
-            } else {
-                console.warn(`Could not geocode location: ${query}`);
-            }
-        } catch (err) {
-            console.error(`Geocoding failed for ${item.place}:`, err);
+        if (placesToGeocode.length === 0) {
+            mapContainer.style.display = 'none';
+            continue;
         }
-    }
 
-    mapContainer.style.opacity = '1.0';
+        mapContainer.style.opacity = '0.7';
+        const coordinates = [];
+        const markers = [];
 
-    if (coordinates.length > 0) {
-        // Draw the connecting path
-        const polyline = L.polyline(coordinates, {
-            color: '#7B2CBF', // Brand primary color
-            weight: 3,
-            opacity: 0.8,
-            dashArray: '10, 10'
-        }).addTo(itineraryMap);
+        for (let i = 0; i < placesToGeocode.length; i++) {
+            const item = placesToGeocode[i];
+            try {
+                // Respect Nominatim's 1 request/second policy across ALL geocodings
+                if (!isFirstReq) await delay(1100);
+                isFirstReq = false;
+                
+                const query = `${item.place}, ${destination}`;
+                const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`, {
+                    headers: {
+                        'User-Agent': 'TravelItineraryApp/1.0 (LocalTest)'
+                    }
+                });
+                const data = await response.json();
 
-        // Adjust view to fit all markers
-        itineraryMap.fitBounds(polyline.getBounds(), { padding: [50, 50] });
-        
-        // Open the popup for the first location
-        if (markers.length > 0) {
-            markers[0].openPopup();
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lon = parseFloat(data[0].lon);
+                    coordinates.push([lat, lon]);
+
+                    const marker = L.marker([lat, lon]).addTo(currentMap);
+                    const emoji = item.transport ? getTransportEmoji(item.transport) : '📍';
+                    marker.bindPopup(`<b>${item.place}</b><br>Arrive: ${item.time} ${emoji}`);
+                    markers.push(marker);
+                } else {
+                    console.warn(`Could not geocode location: ${query}`);
+                }
+            } catch (err) {
+                console.error(`Geocoding failed for ${item.place}:`, err);
+            }
+        }
+
+        mapContainer.style.opacity = '1.0';
+
+        if (coordinates.length > 0) {
+            const polyline = L.polyline(coordinates, {
+                color: '#7B2CBF',
+                weight: 3,
+                opacity: 0.8,
+                dashArray: '10, 10'
+            }).addTo(currentMap);
+
+            currentMap.fitBounds(polyline.getBounds(), { padding: [30, 30] });
+            
+            if (markers.length > 0) {
+                markers[0].openPopup();
+            }
+        } else {
+            // Hide map div completely if geocoding completely fails for this day
+            mapContainer.style.display = 'none';
         }
     }
 }
@@ -572,6 +581,7 @@ function renderItinerary(data) {
                         Day ${day.day_number}
                     </h3>
                 </div>
+                <div id="map-day-${day.day_number}" style="height: 300px; width: 100%; border-radius: 12px; margin-bottom: 1.5rem; border: 1px solid var(--border-subtle); display: none;"></div>
             `;
             timeline.innerHTML += dayHeader;
 
